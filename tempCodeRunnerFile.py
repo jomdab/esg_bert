@@ -1,0 +1,1 @@
+train_text, train_labels = augment_data_back_translation(sentences, labels,translator_en_to_de, tokenizer, model_de_to_en, augmentation_factor=1)

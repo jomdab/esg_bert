@@ -18,17 +18,56 @@ from nltk.corpus import wordnet
 import random
 import nltk
 nltk.download('wordnet')
-# 37
-train_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
-val_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
-test_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
 
-train_text = train_data['ESGN'].values
-val_text = val_data['ESGN'].values
-test_text = test_data['ESGN'].values
-train_labels = train_data['class'].values
-val_labels = val_data['class'].values
-test_labels = test_data['class'].values
+data = pd.read_csv("esgn_all.csv", encoding= 'unicode_escape')
+
+# Define the mapping for label values
+label_mapping = {0: 1, 1: 2, 2: 3, 3: 0}
+
+# Apply the mapping to the 'label' column
+data['class'] = data['class'].map(label_mapping)
+
+# Removing Punctuations
+data['ESGN'] = data['ESGN'].apply(lambda x: x.translate(str.maketrans('','', string.punctuation)))
+
+# Removing urls
+data['ESGN']=data['ESGN'].apply(lambda x : re.compile(r'https?://\S+|www\.\S+').sub('',x))
+
+# Removing HTML Tags
+data['ESGN']=data['ESGN'].apply(lambda x : re.compile(r'<.*?>').sub('',x))
+
+# Removing emoji tags
+emoji_pattern = re.compile("["
+                           u"\U0001F600-\U0001F64F"  # emoticons
+                           u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                           u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                           u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           u"\U00002702-\U000027B0"
+                           u"\U000024C2-\U0001F251"
+                           "]+", flags=re.UNICODE)
+data['ESGN']=data['ESGN'].apply(lambda x : emoji_pattern.sub('',x))
+
+# lowercase
+data['ESGN']=data['ESGN'].apply(lambda x : x.lower())
+
+# Stop word
+nlp = spacy.load("en_core_web_sm")
+def stop_word(text):
+    temp=[]
+    for t in nlp(text):
+        if not nlp.vocab[t.text].is_stop :
+            temp.append(t.text)
+    return " ".join(temp)
+
+data['ESGN']=data['ESGN'].apply(lambda x : stop_word(x) )
+
+# Split data into train and validation sets
+sentences = data['ESGN'].values
+labels = data['class'].values
+
+# 37
+train_text, test_val_text, train_labels, test_val_labels =  train_test_split(sentences, labels, test_size=0.2, random_state=69)
+test_text, val_text, test_labels, val_labels =  train_test_split(test_val_text, test_val_labels, test_size=0.5, random_state=42)
 
 # load a pre-trained BERT tokenizer and model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -71,7 +110,7 @@ for param in bert_model.parameters():
     param = param.to(device)
 
 # Set the number of epochs
-num_epochs = 20
+num_epochs = 1
 
 train_losses = []
 val_losses = []
@@ -229,6 +268,6 @@ print(f"Recall: {recall * 100:.2f}%")
 print(f"F1 Score: {f1 * 100:.2f}%")
 
 
-model_save_path = 'google/electra_small_discriminator'
-bert_model.save_pretrained(model_save_path)
-tokenizer.save_pretrained(model_save_path)
+# model_save_path = 'google/electra_small_discriminator'
+# bert_model.save_pretrained(model_save_path)
+# tokenizer.save_pretrained(model_save_path)

@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from nltk.corpus import wordnet
 import random
 import nltk
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 nltk.download('wordnet')
 # 37
 train_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
@@ -34,11 +36,11 @@ test_labels = test_data['class'].values
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # tokenizer = ElectraTokenizer.from_pretrained("google/electra-base-discriminator")
 # bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-base-discriminator", num_labels=4)
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
+# tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased')
+# bert_model = BertForSequenceClassification.from_pretrained('bert-base-multilingual-uncased', num_labels=4)
 # bert_model = BertModel.from_pretrained('model')
-# tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-# bert_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=4)
+tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+bert_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=4)
 bert_model = bert_model.to(device)
 # nlp = pipeline("text-classification", model=bert_model, tokenizer=tokenizer)
 
@@ -156,29 +158,29 @@ for epoch in range(num_epochs):
             test_predictions.extend(predicted_class.cpu().numpy())
             test_true_labels.extend(labels.cpu().numpy())
 
-            val_accuracy = accuracy_score(test_true_labels, test_predictions)
-            val_accuracys.append(val_accuracy*100)
+        val_accuracy = accuracy_score(test_true_labels, test_predictions)
+        val_accuracys.append(val_accuracy*100)
 
-            # Calculate average validation loss for the epoch
-            avg_val_loss = val_loss / len(val_loader)
-            val_losses.append(avg_val_loss)
+        # Calculate average validation loss for the epoch
+        avg_val_loss = val_loss / len(val_loader)
+        val_losses.append(avg_val_loss)
 
-            print(f"Validation Loss: {avg_val_loss}")
-            print(f"Validation Accuracy: {val_accuracy*100}")
+        print(f"Validation Loss: {avg_val_loss}")
+        print(f"Validation Accuracy: {val_accuracy*100}")
 
-            if val_accuracy > best_accuracy:
-                best_accuracy = val_accuracy
-                best_epoch = epoch
-                # Save the model
-                model_save_path = f'bert_base_uncased'
-                bert_model.save_pretrained(model_save_path)
-                tokenizer.save_pretrained(model_save_path)
-            else:
-                # Check if the training should stop based on patience
-                if epoch - best_epoch >= 2:
-                    early_stop = True
-                    print(f"Early stopping at epoch {epoch}")
-                    break
+        if val_accuracy > best_accuracy:
+            best_accuracy = val_accuracy
+            best_epoch = epoch
+            # Save the model
+            model_save_path = f'distilbert'
+            bert_model.save_pretrained(model_save_path)
+            tokenizer.save_pretrained(model_save_path)
+        else:
+            # Check if the training should stop based on patience
+            if epoch - best_epoch >= 2:
+                early_stop = True
+                print(f"Early stopping at epoch {epoch}")
+                break
 
 # for test set
 test_loss=0
@@ -208,33 +210,45 @@ with torch.no_grad():
         test_predictions.extend(predicted_class.cpu().numpy())
         test_true_labels.extend(labels.cpu().numpy())
 
-test_accuracy = accuracy_score(test_true_labels, test_predictions)
+    test_accuracy = accuracy_score(test_true_labels, test_predictions)
 
-# Calculate average validation loss for the epoch
-avg_test_loss = test_loss / len(test_loader)
+    # Calculate average validation loss for the epoch
+    avg_test_loss = test_loss / len(test_loader)
     
 
-# Plotting the training and validation losses
-plt.plot(range(1, len(train_accuracys)+1), train_accuracys, label='Training accuracy')
-plt.plot(range(1, len(val_accuracys) + 1), val_accuracys, label='Validation accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.title('Training and Validation Accuracy')
-plt.legend()
-plt.show()
+    # Plotting the training and validation losses
+    plt.plot(range(1, len(train_accuracys)+1), train_accuracys, label='Training accuracy')
+    plt.plot(range(1, len(val_accuracys) + 1), val_accuracys, label='Validation accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Training and Validation Accuracy')
+    plt.legend()
+    plt.show()
 
-# Calculate precision, recall, and F1 score
-precision = precision_score(test_true_labels, test_predictions, average='weighted')
-recall = recall_score(test_true_labels, test_predictions, average='weighted')
-f1 = f1_score(test_true_labels, test_predictions, average='weighted')
+    # Compute the confusion matrix
+    conf_matrix = confusion_matrix(test_true_labels, test_predictions)
 
-print(f"Test Loss: {test_loss / len(val_loader)}")
-print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
-print(f"Precision: {precision * 100:.2f}%")
-print(f"Recall: {recall * 100:.2f}%")
-print(f"F1 Score: {f1 * 100:.2f}%")
+    # Plot the confusion matrix
+    class_names = ['environmental', 'social', 'governance', 'non-esg']
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.show()
 
-if not early_stop:
-    model_save_path = 'bert_base_uncased'
-    bert_model.save_pretrained(model_save_path)
-    tokenizer.save_pretrained(model_save_path)
+    # Calculate precision, recall, and F1 score
+    precision = precision_score(test_true_labels, test_predictions, average='weighted')
+    recall = recall_score(test_true_labels, test_predictions, average='weighted')
+    f1 = f1_score(test_true_labels, test_predictions, average='weighted')
+
+    print(f"Test Loss: {test_loss / len(val_loader)}")
+    print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
+    print(f"Precision: {precision * 100:.2f}%")
+    print(f"Recall: {recall * 100:.2f}%")
+    print(f"F1 Score: {f1 * 100:.2f}%")
+
+    if not early_stop:
+        model_save_path = 'distilbert2'
+        bert_model.save_pretrained(model_save_path)
+        tokenizer.save_pretrained(model_save_path)

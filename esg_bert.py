@@ -20,8 +20,8 @@ import nltk
 nltk.download('wordnet')
 # 37
 train_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
-val_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
-test_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
+val_data = pd.read_csv("val2.csv", encoding= 'unicode_escape')
+test_data = pd.read_csv("test2.csv", encoding= 'unicode_escape')
 
 train_text = train_data['ESGN'].values
 val_text = val_data['ESGN'].values
@@ -32,13 +32,13 @@ test_labels = test_data['class'].values
 
 # load a pre-trained BERT tokenizer and model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# tokenizer = ElectraTokenizer.from_pretrained("google/electra-small-discriminator")
-# bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-small-discriminator", num_labels=4)
+# tokenizer = ElectraTokenizer.from_pretrained("google/electra-base-discriminator")
+# bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-base-discriminator", num_labels=4)
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
 # bert_model = BertModel.from_pretrained('model')
-# tokenizer = DistilBertTokenizer.from_pretrained('bert-large-uncased')
-# bert_model = DistilBertForSequenceClassification.from_pretrained('bert-large-uncased', num_labels=4)
+# tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+# bert_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=4)
 bert_model = bert_model.to(device)
 # nlp = pipeline("text-classification", model=bert_model, tokenizer=tokenizer)
 
@@ -78,6 +78,7 @@ val_losses = []
 val_accuracys = []
 train_accuracys = []
 best_accuracy= 0
+early_stop = False
 
 # Training loop
 for epoch in range(num_epochs):
@@ -155,28 +156,29 @@ for epoch in range(num_epochs):
             test_predictions.extend(predicted_class.cpu().numpy())
             test_true_labels.extend(labels.cpu().numpy())
 
-    val_accuracy = accuracy_score(test_true_labels, test_predictions)
-    val_accuracys.append(val_accuracy*100)
+            val_accuracy = accuracy_score(test_true_labels, test_predictions)
+            val_accuracys.append(val_accuracy*100)
 
-    # Calculate average validation loss for the epoch
-    avg_val_loss = val_loss / len(val_loader)
-    val_losses.append(avg_val_loss)
+            # Calculate average validation loss for the epoch
+            avg_val_loss = val_loss / len(val_loader)
+            val_losses.append(avg_val_loss)
 
-    print(f"Validation Loss: {avg_val_loss}")
-    print(f"Validation Accuracy: {val_accuracy*100}")
+            print(f"Validation Loss: {avg_val_loss}")
+            print(f"Validation Accuracy: {val_accuracy*100}")
 
-    if val_accuracy > best_accuracy:
-        best_accuracy = avg_val_loss
-        best_epoch = epoch
-        # Save the model
-        model_save_path = f'bert_base_uncased2'
-        bert_model.save_pretrained(model_save_path)
-        tokenizer.save_pretrained(model_save_path)
-    else:
-        # Check if the training should stop based on patience
-        if epoch - best_epoch >= 2:
-            print(f"Early stopping at epoch {epoch}")
-            break
+            if val_accuracy > best_accuracy:
+                best_accuracy = val_accuracy
+                best_epoch = epoch
+                # Save the model
+                model_save_path = f'bert_base_uncased'
+                bert_model.save_pretrained(model_save_path)
+                tokenizer.save_pretrained(model_save_path)
+            else:
+                # Check if the training should stop based on patience
+                if epoch - best_epoch >= 2:
+                    early_stop = True
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
 # for test set
 test_loss=0
@@ -232,7 +234,7 @@ print(f"Precision: {precision * 100:.2f}%")
 print(f"Recall: {recall * 100:.2f}%")
 print(f"F1 Score: {f1 * 100:.2f}%")
 
-
-# model_save_path = 'bert_base_multilingual'
-# bert_model.save_pretrained(model_save_path)
-# tokenizer.save_pretrained(model_save_path)
+if not early_stop:
+    model_save_path = 'bert_base_uncased'
+    bert_model.save_pretrained(model_save_path)
+    tokenizer.save_pretrained(model_save_path)

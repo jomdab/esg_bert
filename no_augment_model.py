@@ -71,13 +71,13 @@ test_text, val_text, test_labels, val_labels =  train_test_split(test_val_text, 
 
 # load a pre-trained BERT tokenizer and model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# tokenizer = ElectraTokenizer.from_pretrained("bert-base-multilingual-uncased")
-# bert_model = ElectraForSequenceClassification.from_pretrained("bert-base-multilingual-uncased", num_labels=4)
-tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased')
-bert_model = BertForSequenceClassification.from_pretrained('bert-base-multilingual-uncased', num_labels=4)
+tokenizer = ElectraTokenizer.from_pretrained("google/electra-small-discriminator")
+bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-small-discriminator", num_labels=4)
+# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+# bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
 # bert_model = BertModel.from_pretrained('model')
-# tokenizer = DistilBertTokenizer.from_pretrained('bert-large-uncased')
-# bert_model = DistilBertForSequenceClassification.from_pretrained('bert-large-uncased', num_labels=4)
+# tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+# bert_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=4)
 bert_model = bert_model.to(device)
 # nlp = pipeline("text-classification", model=bert_model, tokenizer=tokenizer)
 
@@ -110,7 +110,7 @@ for param in bert_model.parameters():
     param = param.to(device)
 
 # Set the number of epochs
-num_epochs = 5
+num_epochs = 20
 
 train_losses = []
 val_losses = []
@@ -204,14 +204,18 @@ for epoch in range(num_epochs):
     print(f"Validation Loss: {avg_val_loss}")
     print(f"Validation Accuracy: {val_accuracy*100}")
 
-    # Save the model if validation loss is the best so far
-    # if val_accuracy > best_accuracy:
-    #     best_accuracy = val_accuracy
-    #     best_epoch = epoch
-    #     # Save the model
-    #     model_save_path = f'model_best_val_loss'
-    #     bert_model.save_pretrained(model_save_path)
-    #     tokenizer.save_pretrained(model_save_path)
+    if val_accuracy > best_accuracy:
+        best_accuracy = avg_val_loss
+        best_epoch = epoch
+        # Save the model
+        model_save_path = f'nopre/electra-small-discriminator'
+        bert_model.save_pretrained(model_save_path)
+        tokenizer.save_pretrained(model_save_path)
+    else:
+        # Check if the training should stop based on patience
+        if epoch - best_epoch >= 2:
+            print(f"Early stopping at epoch {epoch}")
+            break
 
 # for test set
 test_loss=0

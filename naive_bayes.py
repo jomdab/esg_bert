@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.naive_bayes import GaussianNB
 # 37
 data = pd.read_csv("esgn_all.csv", encoding= 'unicode_escape')
 
@@ -61,11 +62,11 @@ test_text, val_text, test_labels, val_labels =  train_test_split(test_val_text, 
 # Vectorize the text using the Bag-of-Words model
 vectorizer = CountVectorizer()
 X_train = vectorizer.fit_transform(train_text)
-X_val = vectorizer.transform(val_text)
+X_val = vectorizer.transform(val_text).toarray() 
 
 # Train a Naive Bayes classifier
-classifier = MultinomialNB()
-classifier.fit(X_train, train_labels)
+classifier = GaussianNB()
+classifier.fit(X_train.toarray(), train_labels)
 
 # Make predictions on the validation set
 val_predictions = classifier.predict(X_val)

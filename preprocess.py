@@ -142,7 +142,7 @@ translator_en_to_de = pipeline("translation_en_to_de", model='t5-base', device=d
 tokenizer = AutoTokenizer.from_pretrained("google/bert2bert_L-24_wmt_de_en", pad_token="<pad>", eos_token="</s>", bos_token="<s>")
 model_de_to_en = AutoModelForSeq2SeqLM.from_pretrained("google/bert2bert_L-24_wmt_de_en")
 
-train_text, train_labels = augment_data_back_translation(train_text, labels,translator_en_to_de, tokenizer, model_de_to_en, augmentation_factor=1)
+train_text, train_labels = augment_data_back_translation(train_text, train_labels,translator_en_to_de, tokenizer, model_de_to_en, augmentation_factor=1)
 
 print("synonym replacement")
 augmented_train_text, augmented_train_labels = augment_data(train_text, train_labels, augmentation_factor=1)
@@ -153,11 +153,11 @@ train_labels = np.concatenate([train_labels, augmented_train_labels])
 
 # Create a DataFrame and save to CSV
 augmented_data = pd.DataFrame({'ESGN': train_text, 'class': train_labels})
-augmented_data.to_csv('train.csv', index=False)
+augmented_data.to_csv('train2.csv', index=False)
 augmented_data = pd.DataFrame({'ESGN': test_text, 'class': test_labels})
-augmented_data.to_csv('test.csv', index=False)
+augmented_data.to_csv('test2.csv', index=False)
 augmented_data = pd.DataFrame({'ESGN': val_text, 'class': val_labels})
-augmented_data.to_csv('val.csv', index=False)
+augmented_data.to_csv('val2.csv', index=False)
 
 
 print(len(train_text))

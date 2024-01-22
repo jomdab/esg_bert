@@ -19,9 +19,9 @@ import random
 import nltk
 nltk.download('wordnet')
 # 37
-train_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
-val_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
-test_data = pd.read_csv("train.csv", encoding= 'unicode_escape')
+train_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
+val_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
+test_data = pd.read_csv("train2.csv", encoding= 'unicode_escape')
 
 train_text = train_data['ESGN'].values
 val_text = val_data['ESGN'].values
@@ -32,10 +32,10 @@ test_labels = test_data['class'].values
 
 # load a pre-trained BERT tokenizer and model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = ElectraTokenizer.from_pretrained("google/electra-small-discriminator")
-bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-small-discriminator", num_labels=4)
-# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-# bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
+# tokenizer = ElectraTokenizer.from_pretrained("google/electra-small-discriminator")
+# bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-small-discriminator", num_labels=4)
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
 # bert_model = BertModel.from_pretrained('model')
 # tokenizer = DistilBertTokenizer.from_pretrained('bert-large-uncased')
 # bert_model = DistilBertForSequenceClassification.from_pretrained('bert-large-uncased', num_labels=4)
@@ -71,7 +71,7 @@ for param in bert_model.parameters():
     param = param.to(device)
 
 # Set the number of epochs
-num_epochs = 20
+num_epochs = 10
 
 train_losses = []
 val_losses = []
@@ -165,14 +165,18 @@ for epoch in range(num_epochs):
     print(f"Validation Loss: {avg_val_loss}")
     print(f"Validation Accuracy: {val_accuracy*100}")
 
-    # Save the model if validation loss is the best so far
-    # if val_accuracy > best_accuracy:
-    #     best_accuracy = val_accuracy
-    #     best_epoch = epoch
-    #     # Save the model
-    #     model_save_path = f'model_best_val_loss'
-    #     bert_model.save_pretrained(model_save_path)
-    #     tokenizer.save_pretrained(model_save_path)
+    if val_accuracy > best_accuracy:
+        best_accuracy = avg_val_loss
+        best_epoch = epoch
+        # Save the model
+        model_save_path = f'bert_base_uncased2'
+        bert_model.save_pretrained(model_save_path)
+        tokenizer.save_pretrained(model_save_path)
+    else:
+        # Check if the training should stop based on patience
+        if epoch - best_epoch >= 2:
+            print(f"Early stopping at epoch {epoch}")
+            break
 
 # for test set
 test_loss=0
@@ -209,8 +213,8 @@ avg_test_loss = test_loss / len(test_loader)
     
 
 # Plotting the training and validation losses
-plt.plot(range(1, num_epochs + 1), train_accuracys, label='Training accuracy')
-plt.plot(range(1, num_epochs + 1), val_accuracys, label='Validation accuracy')
+plt.plot(range(1, len(train_accuracys)+1), train_accuracys, label='Training accuracy')
+plt.plot(range(1, len(val_accuracys) + 1), val_accuracys, label='Validation accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy')
 plt.title('Training and Validation Accuracy')
@@ -229,6 +233,6 @@ print(f"Recall: {recall * 100:.2f}%")
 print(f"F1 Score: {f1 * 100:.2f}%")
 
 
-model_save_path = 'google/electra_small_discriminator'
-bert_model.save_pretrained(model_save_path)
-tokenizer.save_pretrained(model_save_path)
+# model_save_path = 'bert_base_multilingual'
+# bert_model.save_pretrained(model_save_path)
+# tokenizer.save_pretrained(model_save_path)

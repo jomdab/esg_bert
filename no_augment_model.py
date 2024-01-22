@@ -71,10 +71,10 @@ test_text, val_text, test_labels, val_labels =  train_test_split(test_val_text, 
 
 # load a pre-trained BERT tokenizer and model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = ElectraTokenizer.from_pretrained("google/electra-small-discriminator")
-bert_model = ElectraForSequenceClassification.from_pretrained("google/electra-small-discriminator", num_labels=4)
-# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-# bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=4)
+# tokenizer = ElectraTokenizer.from_pretrained("bert-base-multilingual-uncased")
+# bert_model = ElectraForSequenceClassification.from_pretrained("bert-base-multilingual-uncased", num_labels=4)
+tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased')
+bert_model = BertForSequenceClassification.from_pretrained('bert-base-multilingual-uncased', num_labels=4)
 # bert_model = BertModel.from_pretrained('model')
 # tokenizer = DistilBertTokenizer.from_pretrained('bert-large-uncased')
 # bert_model = DistilBertForSequenceClassification.from_pretrained('bert-large-uncased', num_labels=4)
@@ -110,7 +110,7 @@ for param in bert_model.parameters():
     param = param.to(device)
 
 # Set the number of epochs
-num_epochs = 1
+num_epochs = 5
 
 train_losses = []
 val_losses = []
@@ -268,6 +268,6 @@ print(f"Recall: {recall * 100:.2f}%")
 print(f"F1 Score: {f1 * 100:.2f}%")
 
 
-# model_save_path = 'google/electra_small_discriminator'
-# bert_model.save_pretrained(model_save_path)
-# tokenizer.save_pretrained(model_save_path)
+model_save_path = 'nopre/bert_base_multilingual'
+bert_model.save_pretrained(model_save_path)
+tokenizer.save_pretrained(model_save_path)

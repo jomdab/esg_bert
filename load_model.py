@@ -11,23 +11,48 @@ from torch.optim import AdamW
 import torch.nn as nn
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-data = pd.read_csv("esgn_all.csv", encoding= 'unicode_escape')
+
+data = pd.read_excel('gold_standard_corpus.xlsx')
+data = data.dropna(subset=['headline'])
+
 
 # Define the mapping for label values
-label_mapping = {0: 1, 1: 2, 2: 3, 3: 0}
+label_mapping = {"environmental": 1, "social": 2, "governance": 3, "non-esg": 0}
 
 # Apply the mapping to the 'label' column
-data['class'] = data['class'].map(label_mapping)
+data['class'] = data['esg_category'].map(label_mapping)
+
+# Separate the dataset based on classes
+class_0_data = data[data['class'] == 0]
+class_1_data = data[data['class'] == 1]
+class_2_data = data[data['class'] == 2]
+class_3_data = data[data['class'] == 3]
+
+# Randomly select 500 sentences for each class
+test_set_class_0 = class_0_data.sample(n=500, random_state=42)
+test_set_class_1 = class_1_data.sample(n=500, random_state=42)
+test_set_class_2 = class_2_data.sample(n=500, random_state=42)
+test_set_class_3 = class_3_data.sample(n=500, random_state=42)
+
+# Combine the selected sentences to create the final test set
+final_test_set = pd.concat([test_set_class_0, test_set_class_1, test_set_class_2, test_set_class_3])
+
+# Shuffle the final test set
+data = final_test_set.sample(frac=1, random_state=42).reset_index(drop=True)
+
 
 # Removing Punctuations
-data['ESGN'] = data['ESGN'].apply(lambda x: x.translate(str.maketrans('','', string.punctuation)))
+data['headline'] = data['headline'].apply(lambda x: x.translate(str.maketrans('','', string.punctuation)))
 
 # Removing urls
-data['ESGN']=data['ESGN'].apply(lambda x : re.compile(r'https?://\S+|www\.\S+').sub('',x))
+data['headline']=data['headline'].apply(lambda x : re.compile(r'https?://\S+|www\.\S+').sub('',x))
 
 # Removing HTML Tags
-data['ESGN']=data['ESGN'].apply(lambda x : re.compile(r'<.*?>').sub('',x))
+data['headline']=data['headline'].apply(lambda x : re.compile(r'<.*?>').sub('',x))
 
 # Removing emoji tags
 emoji_pattern = re.compile("["
@@ -38,10 +63,10 @@ emoji_pattern = re.compile("["
                            u"\U00002702-\U000027B0"
                            u"\U000024C2-\U0001F251"
                            "]+", flags=re.UNICODE)
-data['ESGN']=data['ESGN'].apply(lambda x : emoji_pattern.sub('',x))
+data['headline']=data['headline'].apply(lambda x : emoji_pattern.sub('',x))
 
 # lowercase
-data['ESGN']=data['ESGN'].apply(lambda x : x.lower())
+data['headline']=data['headline'].apply(lambda x : x.lower())
 
 # Stop word
 nlp = spacy.load("en_core_web_sm")
@@ -52,17 +77,17 @@ def stop_word(text):
             temp.append(t.text)
     return " ".join(temp)
 
-data['ESGN']=data['ESGN'].apply(lambda x : stop_word(x) )
+data['headline']=data['headline'].apply(lambda x : stop_word(x) )
 
-# Split data into train and validation sets
-sentences = data['ESGN'].values
-labels = data['class'].values
-train_text, val_text, train_labels, val_labels =  train_test_split(sentences, labels, test_size=0.1, random_state=40)
+# Extract sentences and classes into variables
+val_text = data['headline'].tolist()
+val_labels = data['class'].tolist()
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-paths = ['model_best_val_loss','yiyanghkust/finbert-esg','bert-base-uncased']
-name = ["My model","Finbert model","Bert model"]
+paths = ['bert_base_uncased2']
+name = ["bert"]
 
 for i,path in enumerate(paths):
     # load a pre-trained BERT tokenizer and model
@@ -73,21 +98,14 @@ for i,path in enumerate(paths):
     # nlp = pipeline("text-classification", model=bert_model, tokenizer=tokenizer)
 
     # tokenize the text data
-    train_list = [str(t) for t in train_text]
     val_list = [str(t) for t in val_text]
-    train_inputs = tokenizer(train_list, padding=True, truncation=True, return_tensors="pt")
     val_inputs = tokenizer(val_list, padding=True, truncation=True, return_tensors="pt")
 
     # convert labels to PyTorch tensors
-    train_labels = torch.tensor(train_labels, dtype=torch.float32)
     val_labels = torch.tensor(val_labels, dtype=torch.float32)
 
     # create DataLoader for training and validation sets
-    print(type(train_inputs.input_ids))
-    print(type(train_list))
-    train_dataset = TensorDataset(train_inputs.input_ids, train_inputs.attention_mask, train_labels)
     val_dataset = TensorDataset(val_inputs.input_ids, val_inputs.attention_mask, val_labels)
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=4)
 
     # define optimizer and loss function
@@ -150,5 +168,17 @@ for i,path in enumerate(paths):
     print(f"Precision: {precision * 100:.2f}%")
     print(f"Recall: {recall * 100:.2f}%")
     print(f"F1 Score: {f1 * 100:.2f}%")
+
+        # Compute the confusion matrix
+    conf_matrix = confusion_matrix(test_true_labels, test_predictions)
+
+    # Plot the confusion matrix
+    class_names = ['environmental', 'environmental', 'social', 'non-esg']
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.show()
 
 

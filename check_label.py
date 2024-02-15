@@ -12,26 +12,33 @@ import torch.nn as nn
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from collections import Counter
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 
-data = pd.read_csv("esgn_all.csv", encoding= 'unicode_escape')
+data = pd.read_excel("dataset.xlsx")
 
-# Define the mapping for label values
-label_mapping = {0: 1, 1: 2, 2: 3, 3: 0}
 
-# Apply the mapping to the 'label' column
-data['class'] = data['class'].map(label_mapping)
 
 # Split data into train and validation sets
 sentences = data['ESGN'].values
 labels = data['class'].values
-train_text, test_val_text, train_labels, test_val_labels =  train_test_split(sentences, labels, test_size=0.2, random_state=69)
-# 0,21
-test_text, val_text, test_labels, val_labels =  train_test_split(test_val_text, test_val_labels, test_size=0.5, random_state=0)
+ori_text = sentences
+
+# Use stratified sampling to split the data
+stratified_splitter = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=69)
+train_indices, val_indices = next(stratified_splitter.split(sentences, labels, ori_text))
+
+# Split the data based on the indices obtained from stratified sampling
+train_text = [sentences[i] for i in train_indices]
+val_text = [sentences[i] for i in val_indices]
+train_labels = [labels[i] for i in train_indices]
+val_labels = [labels[i] for i in val_indices]
+train_ori_text = [ori_text[i] for i in train_indices]
+val_ori_text = [ori_text[i] for i in val_indices]
 
 labels = torch.tensor(labels, dtype=torch.float32)
 val_labels = torch.tensor(val_labels, dtype=torch.float32)
 train_labels = torch.tensor(train_labels, dtype=torch.float32)
-test_labels = torch.tensor(test_labels, dtype=torch.float32)
+
 
 # print the number of occurrences for each class in all sentence
 class_counts = Counter(labels.numpy())
@@ -45,15 +52,11 @@ print("Number of occurrences for each class in train_labels:")
 for class_label, count in class_counts.items():
     print(f"Class {class_label}: {count}")
 
-    class_counts = Counter(test_labels.numpy())
-print("Number of occurrences for each class in test_labels:")
-for class_label, count in class_counts.items():
-    print(f"Class {class_label}: {count}")
-
 # print the number of occurrences for each class in val_labels
 class_counts = Counter(val_labels.numpy())
 print("Number of occurrences for each class in val_labels:")
 for class_label, count in class_counts.items():
     print(f"Class {class_label}: {count}")
+
 
 
